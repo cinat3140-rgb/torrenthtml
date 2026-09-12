@@ -33,6 +33,15 @@ img { max-width: 100%; display: block; }
 .page-sub { color: var(--text-dim); margin: 6px 0 22px; }
 .dim { color: var(--text-dim); }
 
+/* ---------- Site switcher ---------- */
+.site-switch { background: var(--bg-soft); border-bottom: 1px solid var(--border); }
+.site-switch-inner { display: flex; align-items: center; gap: 6px; height: 38px; flex-wrap: wrap; }
+.site-switch-label { font-size: 0.74rem; font-weight: 700; color: var(--text-dim); margin-right: 4px; }
+.site-link { font-size: 0.74rem; font-weight: 700; color: var(--text-dim); padding: 4px 11px; border-radius: 999px; border: 1px solid transparent; transition: all 0.14s; white-space: nowrap; text-decoration: none; }
+.site-link:hover { color: var(--text); background: var(--bg-raised); border-color: var(--border); }
+.site-link.active { color: #06231a; background: var(--accent); border-color: var(--accent); }
+.site-link.active:hover { color: #06231a; }
+
 /* ---------- Buttons ---------- */
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 7px;
