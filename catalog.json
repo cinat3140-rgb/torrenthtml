@@ -1,0 +1,16 @@
+{
+  "meta": {
+    "site": "TorrentHTML",
+    "version": "1.0.0",
+    "updatedAt": "2026-09-12T00:00:00.000Z"
+  },
+  "categories": [
+    { "id": 1, "name": "Aksiyon" },
+    { "id": 2, "name": "Yarış" },
+    { "id": 3, "name": "Macera" },
+    { "id": 4, "name": "FPS" },
+    { "id": 5, "name": "Spor" },
+    { "id": 6, "name": "RPG" }
+  ],
+  "games": []
+}

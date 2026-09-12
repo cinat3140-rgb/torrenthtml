@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TorrentHTML — Torrent Oyun Kütüphanesi</title>
+  <meta name="description" content="TorrentHTML: en güncel oyun torrentleri. Magnet bağlantıları, torrent dosyaları, seeder/leecher bilgisi ve boyutlar — hepsi tek yerde." />
+  <link rel="icon" href="favicon.png" type="image/png" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="nav">
+    <div class="wrap nav-inner">
+      <a class="brand" href="#/">
+        <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/>
+        </svg>
+        <span class="brand-name">Torrent<span class="accent">HTML</span></span>
+      </a>
+      <nav class="nav-links">
+        <a href="#/katalog">Katalog</a>
+        <a href="#/indir">İstemci</a>
+        <a href="#/kurulum">Kurulum</a>
+        <a href="#/sss">SSS</a>
+      </nav>
+      <a class="btn btn-primary btn-sm nav-cta" href="#/katalog">🧲 Torrent Ara</a>
+    </div>
+  </header>
+
+  <div id="updateBanner" class="update-banner" hidden></div>
+
+  <main>
+    <section data-view="home">
+      <div class="hero">
+        <div class="wrap hero-inner">
+          <div class="hero-badge"><span class="dot"></span> Torrent Kütüphanesi · Ücretsiz</div>
+          <h1>Oyun torrentlerini <span class="accent">güvenle</span> indir</h1>
+          <p class="hero-sub">TorrentHTML, en güncel oyunların magnet bağlantı ve .torrent dosyalarını seeder sayısıyla birlikte sunar. İndirme hızın topluluğa bağlıdır.</p>
+          <div class="hero-cta">
+            <a class="btn btn-primary btn-lg" href="#/katalog">🧲 Kataloğa Göz At</a>
+            <a class="btn btn-ghost btn-lg" href="#/indir">⬇ Torrent İstemcisi</a>
+          </div>
+          <p class="hero-meta">Windows · macOS · Linux · Android uyumlu magnet linkler</p>
+        </div>
+      </div>
+
+      <section class="section" id="ozellikler">
+        <div class="wrap">
+          <h2 class="section-title">Neden TorrentHTML?</h2>
+          <div class="features">
+            <div class="feature"><div class="f-icon">🧲</div><h3>Magnet Linkler</h3><p>Tek tıkla torrent istemcin açılır; dosya indirme başlar.</p></div>
+            <div class="feature"><div class="f-icon">📡</div><h3>Seeder / Leecher</h3><p>Her torrent için topluluk sağlık göstergesi: kaç kişi paylaşıyor.</p></div>
+            <div class="feature"><div class="f-icon">🚀</div><h3>Hızlı Keşif</h3><p>Kategori, boyut ve tür filtreleriyle aradığını çabuk bul.</p></div>
+            <div class="feature"><div class="f-icon">📱</div><h3>Her Cihazda</h3><p>Mobil tarayıcıda bile çalışır; Android torrent istemcileriyle uyumlu.</p></div>
+            <div class="feature"><div class="f-icon">🛡</div><h3>Doğrulanmış Dosyalar</h3><p>İndirme sonrası SHA-256 ile dosya bütünlüğü doğrulanabilir.</p></div>
+            <div class="feature"><div class="f-icon">💚</div><h3>Yeşil Tema</h3><p>Torrent topluluğuna özel, göz yormayan koyu yeşil arayüz.</p></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section section-cta">
+        <div class="wrap cta-inner">
+          <h2>İndirmeye başla</h2>
+          <p>Kataloğu gez, magnet bağlantısını kopyala ya da direkt aç.</p>
+          <a class="btn btn-primary btn-lg" href="#/katalog">🧲 Kataloğa Git</a>
+        </div>
+      </section>
+    </section>
+
+    <section data-view="katalog" hidden>
+      <div class="wrap section">
+        <div class="catalog-head">
+          <div>
+            <h1 class="page-title">Torrent Kataloğu</h1>
+            <p class="page-sub" id="catalogCount">Yükleniyor…</p>
+          </div>
+          <div class="catalog-controls">
+            <input id="searchInput" class="search-input" type="search" placeholder="🔍 Torrent ara…" oninput="window.app && app.applySearch(this.value)" />
+            <select id="catFilter" class="select" onchange="window.app && app.applyFilter(this.value)">
+              <option value="">Tüm Kategoriler</option>
+            </select>
+          </div>
+        </div>
+        <div id="catalogGrid" class="grid">
+          <div class="loader"></div>
+        </div>
+      </div>
+    </section>
+
+    <section data-view="game" hidden>
+      <div class="wrap section" id="gameDetail"><div class="loader"></div></div>
+    </section>
+
+    <section data-view="indir" hidden>
+      <div class="wrap section">
+        <h1 class="page-title">Torrent İstemcisi Seç</h1>
+        <p class="page-sub">Magnet linkleri çalıştırmak için bir torrent istemcisi gerekir. En popüler ücretsiz seçenekler:</p>
+        <div class="downloads">
+          <a class="card card-featured" href="https://www.qbittorrent.org/" target="_blank" rel="noopener">
+            <div class="card-tag">Önerilen</div>
+            <div class="card-icon">🧲</div>
+            <h3>qBittorrent</h3>
+            <p>Ücretsiz, açık kaynak, reklamsız. Tüm platformlar.</p>
+            <span class="btn btn-primary">İndir →</span>
+          </a>
+          <a class="card" href="https://www.utorrent.com/" target="_blank" rel="noopener">
+            <div class="card-icon">⚡</div>
+            <h3>µTorrent</h3>
+            <p>Hafif ve hızlı. Windows / macOS / Android.</p>
+            <span class="btn btn-ghost">İndir →</span>
+          </a>
+          <a class="card" href="https://apps.anidow.com/" target="_blank" rel="noopener">
+            <div class="card-icon">📱</div>
+            <h3>Flud (Android)</h3>
+            <p>Android için popüler, kullanımı kolay torrent istemcisi.</p>
+            <span class="btn btn-ghost">İndir →</span>
+          </a>
+          <a class="card" href="https://www.transmissionbt.com/" target="_blank" rel="noopener">
+            <div class="card-icon">🐧</div>
+            <h3>Transmission</h3>
+            <p>Hafif istemci. Linux / macOS / Windows.</p>
+            <span class="btn btn-ghost">İndir →</span>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <section data-view="kurulum" hidden>
+      <div class="wrap section">
+        <h1 class="page-title">Torrent Nasıl İndirilir?</h1>
+        <p class="page-sub">Torrent indirme birkaç dakika içinde hazır.</p>
+        <ol class="steps">
+          <li><b>1. İstemci kur</b><p>Yukarıdan qBittorrent gibi bir istemci indir ve kur.</p></li>
+          <li><b>2. Magnet'i aç</b><p>Katalogda "Magnet" butonuna tıkla; istemcin otomatik başlar.</p></li>
+          <li><b>3. İndirmeyi bekle</b><p>Seeder sayısı yüksek torrentler daha hızlı iner. İnene kadar paylaşmayı da unutma!</p></li>
+          <li><b>4. Doğrula ve kur</b><p>Tets uzantılı dosyalara dikkat et; .iso/.zip/rar içindeki oyunu kur.</p></li>
+        </ol>
+      </div>
+    </section>
+
+    <section data-view="sss" hidden>
+      <div class="wrap section">
+        <h1 class="page-title">Sık Sorulan Sorular</h1>
+        <div class="faq">
+          <details><summary>Torrent indirmek güvenli mi?</summary><p>Dosyaları büyük topluluklardan gelen, çok seeder'lı torrentlerden indirmek daha güvenlidir. İndirdikten sonra SHA-256 ile doğrula.</p></details>
+          <details><summary>Magnet link nedir?</summary><p>Torrent dosyasını indirmek zorunda kalmadan istemcinin doğrudan bağlantıyı çözmesini sağlayan bir bağlantıdır.</p></details>
+          <details><summary>Neden indirme hızım yavaş?</summary><p>Seeder (paylaşan) sayısı azsa hız düşer. Torrent'i inerken açık tut, paylaşarak topluluğa katkı sağla.</p></details>
+          <details><summary>Mobilde indirebilir miyim?</summary><p>Evet, Flux gibi bir Android istemcisiyle magnet linkleri telefonda da kullanabilirsin.</p></details>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap footer-inner">
+      <div class="brand">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/>
+        </svg>
+        <span class="brand-name">Torrent<span class="accent">HTML</span></span>
+      </div>
+      <p class="footer-meta">v1.0.0 · © 2026 TorrentHTML</p>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
