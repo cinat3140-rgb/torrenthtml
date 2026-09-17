@@ -1,10 +1,57 @@
 (function () {
   "use strict";
 
-  var state = { catalog: null, categoryId: null, error: null, search: "" };
+  var state = { catalog: null, categoryId: null, error: null, search: "", metricsUrl: null };
 
   function $(sel, root) { return (root || document).querySelector(sel); }
   function $$(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
+
+  function metric(type, gameId) {
+    if (!state.metricsUrl || !gameId || isNaN(Number(gameId))) return;
+    fetch(state.metricsUrl.replace(/\/$/, "") + "/" + type, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ gameId: Number(gameId) })
+    }).catch(function () {});
+  }
+
+  function refreshStats() {
+    if (!state.metricsUrl || !state.catalog) return Promise.resolve();
+    var games = state.catalog.games || [];
+    var ids = games.map(function (g) { return g.id; }).filter(function (id) { return /^\d+$/.test(String(id)); });
+    if (!ids.length) return Promise.resolve();
+    return fetch(state.metricsUrl.replace(/\/$/, "") + "?ids=" + ids.join(","), { cache: "no-store" })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (map) {
+        if (!map) return;
+        games.forEach(function (g) {
+          var s = map[String(g.id)];
+          if (s) g.stats = { views: s.views, downloads: s.downloads };
+        });
+      })
+      .catch(function () {});
+  }
+
+  function applyTheme() {
+    var t = "dark";
+    try { t = localStorage.getItem("theme") || "dark"; } catch (e) {}
+    document.documentElement.setAttribute("data-theme", t);
+    var btn = $("#themeToggle");
+    if (btn) btn.textContent = t === "light" ? "🌙" : "☀️";
+  }
+
+  function toggleTheme() {
+    var t = document.documentElement.getAttribute("data-theme") === "light" ? "dark" : "light";
+    try { localStorage.setItem("theme", t); } catch (e) {}
+    applyTheme();
+  }
+
+  function fmtCount(n) {
+    if (n == null || isNaN(n)) return "0";
+    if (n >= 1000000) return (n / 1000000).toFixed(1).replace(/\.0$/, "") + "M";
+    if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, "") + "B";
+    return String(n);
+  }
 
   function esc(s) {
     return String(s == null ? "" : s)
@@ -30,8 +77,9 @@
       })
       .then(function (data) {
         state.catalog = data;
+        state.metricsUrl = data.metricsUrl || null;
         fillCategoryFilter(data.categories || []);
-        return data;
+        return refreshStats().then(function () { return data; });
       });
   }
 
@@ -107,11 +155,18 @@
 
     var actions;
     if (t.magnet) {
-      actions = '<a class="btn btn-primary btn-sm" href="' + esc(t.magnet) + '">🧲 Magnet</a>' +
+      actions = '<a class="btn btn-primary btn-sm" href="' + esc(t.magnet) + '" data-metric="download:' + g.id + '">🧲 Magnet</a>' +
         '<a class="btn btn-ghost btn-sm" href="#/oyun/' + g.id + '">Detay</a>';
     } else {
       actions = '<a class="btn btn-ghost btn-sm" href="#/oyun/' + g.id + '">İncele</a>' +
         '<span class="btn btn-ghost btn-sm" style="cursor:default">Yakında</span>';
+    }
+
+    var statsHtml = "";
+    if (g.stats && (typeof g.stats.views === "number" || typeof g.stats.downloads === "number")) {
+      statsHtml =
+        (typeof g.stats.views === "number" ? '<span class="gcard-views">👁 ' + fmtCount(g.stats.views) + "</span>" : "") +
+        (typeof g.stats.downloads === "number" ? '<span class="gcard-dl">⬇ ' + fmtCount(g.stats.downloads) + "</span>" : "");
     }
 
     return (
@@ -130,6 +185,7 @@
             (size !== "-" ? '<span class="gcard-size">💾 ' + size + "</span>" : "") +
             (g.latestVersion ? '<span class="gcard-ver">v' + esc(g.latestVersion.version || g.version) + "</span>" : "") +
             healthBadges(t) +
+            statsHtml +
           "</div>" +
           '<div class="gcard-actions">' + actions + "</div>" +
         "</div>" +
@@ -154,6 +210,7 @@
 
   function renderGame(id) {
     var el = $("#gameDetail");
+    metric("view", id);
     var g = state.catalog && state.catalog.games.find(function (x) { return Number(x.id) === Number(id); });
     if (!g) {
       el.innerHTML = '<div class="empty">Torrent bulunamadı. <a href="#/katalog" style="color:var(--accent)">Kataloğa dön</a></div>';
@@ -170,9 +227,9 @@
     var magnetPanel = "";
     if (t.hasAny) {
       var btnRow = "";
-      if (t.magnet) btnRow += '<a class="btn btn-primary btn-lg" href="' + esc(t.magnet) + '">🧲 Magnet ile Aç</a>';
+      if (t.magnet) btnRow += '<a class="btn btn-primary btn-lg" href="' + esc(t.magnet) + '" data-metric="download:' + g.id + '">🧲 Magnet ile Aç</a>';
       if (t.magnet) btnRow += '<button class="btn btn-ghost btn-lg" onclick="app.copyText(&quot;' + esc(t.magnet) + '&quot;)">📋 Magnet Kopyala</button>';
-      if (t.torrentUrl) btnRow += '<a class="btn btn-ghost btn-lg" href="' + esc(t.torrentUrl) + '" download>⬇ .torrent İndir</a>';
+      if (t.torrentUrl) btnRow += '<a class="btn btn-ghost btn-lg" href="' + esc(t.torrentUrl) + '" download data-metric="download:' + g.id + '">⬇ .torrent İndir</a>';
 
       var health = "";
       if (t.seeds != null) health += '<span class="chip style">▲ ' + esc(t.seeds) + " Seeder</span>";
@@ -197,6 +254,8 @@
     infoRows += t.leeches != null ? infoRow("Leecher", String(t.leeches)) : "";
     infoRows += t.uploader ? infoRow("Yükleyen", t.uploader) : "";
     if (t.sha256) infoRows += infoRow("SHA-256", t.sha256.slice(0, 24) + "…");
+    if (g.stats && typeof g.stats.views === "number") infoRows += infoRow("Görüntülenme", "👁 " + fmtCount(g.stats.views));
+    if (g.stats && typeof g.stats.downloads === "number") infoRows += infoRow("İndirme", "⬇ " + fmtCount(g.stats.downloads));
 
     var screens = Array.isArray(g.screenshots) && g.screenshots.length
       ? '<div class="screens"><div class="screens-title">Görseller</div><div class="screens-grid">' +
@@ -303,12 +362,26 @@
       state.search = (v || "").trim();
       renderCatalog();
     },
-    copyText: copyText
+    copyText: copyText,
+    toggleTheme: toggleTheme
   };
 
   window.addEventListener("hashchange", route);
-  document.addEventListener("DOMContentLoaded", route);
-  if (document.readyState !== "loading") route();
+  document.addEventListener("DOMContentLoaded", function () {
+    applyTheme();
+    var tt = $("#themeToggle");
+    if (tt) tt.addEventListener("click", toggleTheme);
+    route();
+  });
+  if (document.readyState !== "loading") { applyTheme(); route(); }
+
+  /* Metric delegation: <a data-metric="view|download:id"> */
+  document.addEventListener("click", function (e) {
+    var el = e.target && e.target.closest ? e.target.closest("a[data-metric]") : null;
+    if (!el) return;
+    var parts = el.getAttribute("data-metric").split(":");
+    if (parts[0] === "download") metric("download", parts[1]);
+  });
 
   document.addEventListener("click", function (e) {
     var t = e.target;
