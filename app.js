@@ -33,8 +33,7 @@
   }
 
   function applyTheme() {
-    var t = "dark";
-    try { t = localStorage.getItem("theme") || "dark"; } catch (e) {}
+    var t = localStorage.getItem("html.theme") || (window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
     document.documentElement.setAttribute("data-theme", t);
     var btn = $("#themeToggle");
     if (btn) btn.textContent = t === "light" ? "🌙" : "☀️";
@@ -42,7 +41,7 @@
 
   function toggleTheme() {
     var t = document.documentElement.getAttribute("data-theme") === "light" ? "dark" : "light";
-    try { localStorage.setItem("theme", t); } catch (e) {}
+    try { localStorage.setItem("html.theme", t); } catch (e) {}
     applyTheme();
   }
 
