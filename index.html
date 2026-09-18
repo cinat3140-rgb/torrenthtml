@@ -138,13 +138,49 @@
     <section data-view="kurulum" hidden>
       <div class="wrap section">
         <h1 class="page-title">Torrent Nasıl İndirilir?</h1>
-        <p class="page-sub">Torrent indirme birkaç dakika içinde hazır.</p>
-        <ol class="steps">
-          <li><b>1. İstemci kur</b><p>Yukarıdan qBittorrent gibi bir istemci indir ve kur.</p></li>
-          <li><b>2. Magnet'i aç</b><p>Katalogda "Magnet" butonuna tıkla; istemcin otomatik başlar.</p></li>
-          <li><b>3. İndirmeyi bekle</b><p>Seeder sayısı yüksek torrentler daha hızlı iner. İnene kadar paylaşmayı da unutma!</p></li>
-          <li><b>4. Doğrula ve kur</b><p>Tets uzantılı dosyalara dikkat et; .iso/.zip/rar içindeki oyunu kur.</p></li>
-        </ol>
+        <p class="page-sub">Tek akış; seçim gerekmez. Adımları sırayla takip et, torrentini indir.</p>
+        <div id="setupWizard">
+          <div class="setup-bar"><div id="setupBarFill" class="setup-bar-fill"></div></div>
+          <div class="sw-steps">
+            <div class="sw-step" id="swStep1">
+              <div class="sw-num">1</div>
+              <div class="sw-body">
+                <div class="sw-title">İstemci hazırlanıyor</div>
+                <p class="sw-sub">Torrent istemcisi kontrol ediliyor; gerekli değilse kurulumu öneriliyor.</p>
+              </div>
+              <div class="sw-check">⋯</div>
+            </div>
+            <div class="sw-step" id="swStep2">
+              <div class="sw-num">2</div>
+              <div class="sw-body">
+                <div class="sw-title">Magnet hazırlanıyor</div>
+                <p class="sw-sub">Katalogda "Magnet" butonu hazırlanıyor; istemcin otomatik başlatılacak.</p>
+              </div>
+              <div class="sw-check">⋯</div>
+            </div>
+            <div class="sw-step" id="swStep3">
+              <div class="sw-num">3</div>
+              <div class="sw-body">
+                <div class="sw-title">Dosya yerleştiriliyor</div>
+                <p class="sw-sub">İndirilen dosyalar kontrol ediliyor; eski dosyalar üzerine yazılır, hiçbir şey silinmez.</p>
+              </div>
+              <div class="sw-check">⋯</div>
+            </div>
+            <div class="sw-step" id="swStep4">
+              <div class="sw-num">4</div>
+              <div class="sw-body">
+                <div class="sw-title">Oynamaya hazır</div>
+                <p class="sw-sub">Kurulum tamamlandı. Katalogdan torrenti seç ve indirmeye başla.</p>
+              </div>
+              <div class="sw-check">⋯</div>
+            </div>
+          </div>
+          <div class="sw-actions">
+            <button class="btn btn-primary btn-lg" id="setupNext" type="button">Sıradaki →</button>
+            <a class="btn btn-ghost" href="#/katalog">Kataloğa Dön</a>
+          </div>
+          <p class="sw-status dim" id="setupStatus"></p>
+        </div>
       </div>
     </section>
 

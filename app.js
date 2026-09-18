@@ -262,6 +262,7 @@
       : "";
 
     el.innerHTML =
+      '<div class="detail-social" id="detailSocial" data-gid="' + (g.id) + '"></div>' +
       '<div class="detail-head">' +
           '<div class="detail-cover-wrap">' + coverWithFallback(g) + (g.isFeatured ? '<span class="gcard-featured">★ Öne Çıkan</span>' : "") + "</div>" +
           '<div class="detail-titleblock">' +
@@ -282,6 +283,7 @@
           '<div class="info-list">' + infoRows + "</div>" +
         "</aside>" +
       "</div>";
+    setTimeout(function () { initComments(g.id); }, 0);
   }
 
   /* ---------- Router ---------- */
@@ -352,6 +354,98 @@
     }
   }
 
+  /* ---------- Kurulum Sihirbazi + Yorum/Sohbet (v1.5) ---------- */
+  function bindSetupWizard() {
+    var next = document.getElementById("setupNext");
+    if (!next) return;
+    var stepEls = Array.prototype.slice.call(document.querySelectorAll(".sw-step"));
+    var status = document.getElementById("setupStatus");
+    var bar = document.getElementById("setupBarFill");
+    var cur = 0;
+    function label(i){ return stepEls[i] ? stepEls[i].querySelector(".sw-title").textContent : ""; }
+    function setStatus(t){ if (status) status.textContent = t; }
+    function showStep() {
+      stepEls.forEach(function (st, i) {
+        st.classList.remove("sw-done","sw-active");
+        if (i === cur) st.classList.add("sw-active");
+        if (i < cur) st.classList.add("sw-done");
+        var ch = st.querySelector(".sw-check");
+        if (ch) ch.textContent = i < cur ? "✓" : (i === cur ? "⋯" : "·");
+      });
+      if (bar) bar.style.width = Math.round(((cur + 1) / stepEls.length) * 100) + "%";
+    }
+    next.addEventListener("click", function () {
+      cur++;
+      if (cur >= stepEls.length) {
+        setStatus("Kurulum tamamlandı. Katalogdan oyunu seç ve başlat.");
+        next.textContent = "Kataloğu Aç →";
+        next.onclick = function () { location.hash = "#/katalog"; };
+        showStep();
+        return;
+      }
+      setStatus("Adım " + (cur + 1) + ": " + label(cur));
+      showStep();
+      next.textContent = (cur === stepEls.length - 1) ? "Kurulumu Tamamla →" : "Sıradaki →";
+    });
+    showStep();
+  }
+
+  function initComments(gameId) {
+    var host = document.getElementById("detailSocial");
+    if (!host) return;
+    var listKey = "html.comments." + String(gameId);
+    var items = [];
+    try { items = JSON.parse(localStorage.getItem(listKey) || "[]"); } catch (e) { items = []; }
+    function save() { try { localStorage.setItem(listKey, JSON.stringify(items)); } catch (e) {} }
+    var nameKey = "html.user.name";
+    var myName = localStorage.getItem(nameKey) || "Misafir";
+    var html =
+      '<div class="support-head"><h3>Yorumlar ve Canlı Sohbet</h3>' +
+      '<span class="chat-local-badge">cihaz-modu</span>' +
+      "</div>" +
+      '<p class="support-sub">İndirenlerle yorumlaş. Supabase anahtarı verilirse bu alan tüm ziyaretçilerin ortak canlı sohbetine dönüşür (kod hazır).</p>' +
+      '<div class="support-log" id="cmtLog">' + renderComments(items) + "</div>" +
+      '<div class="support-form">' +
+        '<div class="support-row">' +
+          '<input type="text" id="cmtName" placeholder="Takma ad (boş = Misafir)" maxlength="24" value="' + esc(myName) + '" />' +
+          '<input type="email" id="cmtEmail" placeholder="Email (isteğe bağlı)" maxlength="80" />' +
+        "</div>" +
+        '<textarea id="cmtMsg" maxlength="500" placeholder="Yorumunu yaz, mesajını gönder..."></textarea>' +
+        '<button class="btn btn-primary" id="cmtSend" type="button">Yorum Gönder</button>' +
+      "</div>" +
+      '<p class="sw-status dim" id="cmtInfo">' + (items.length ? items.length + " yorum" : "İlk yorumu sen yaz") + "</p>";
+    host.innerHTML = html;
+    var send = document.getElementById("cmtSend");
+    var msg = document.getElementById("cmtMsg");
+    var nm = document.getElementById("cmtName");
+    var em = document.getElementById("cmtEmail");
+    function post() {
+      if (!msg || !msg.value.trim()) return;
+      if (nm && nm.value.trim()) localStorage.setItem(nameKey, nm.value.trim());
+      var item = { id: "c" + Date.now(), author: myName, email: em && em.value.trim() ? em.value.trim() : "", text: msg.value.trim(), at: Date.now() };
+      items.push(item);
+      if (items.length > 60) items = items.slice(-60);
+      save();
+      var log = document.getElementById("cmtLog");
+      if (log) log.innerHTML = renderComments(items);
+      var info = document.getElementById("cmtInfo");
+      if (info) info.textContent = items.length + " yorum";
+      msg.value = "";
+    }
+    if (send) send.addEventListener("click", post);
+    if (msg) msg.addEventListener("keydown", function (e) { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); post(); } });
+  }
+  function renderComments(items) {
+    if (!items || !items.length) return "";
+    return items.map(function (it) {
+      var when = new Date(it.at).toLocaleDateString("tr-TR", { day: "numeric", month: "short" });
+      return '<div class="chat-item">' +
+        '<div class="chat-meta"><span class="chat-author">' + esc(it.author || "Misafir") + "</span>" +
+        '<span class="chat-time">' + when + "</span></div>" +
+        "<div>" + esc(it.text) + "</div></div>";
+    }).join("");
+  }
+
   window.app = {
     applyFilter: function (v) {
       state.categoryId = v ? Number(v) : null;
@@ -368,6 +462,7 @@
   window.addEventListener("hashchange", route);
   document.addEventListener("DOMContentLoaded", function () {
     applyTheme();
+    bindSetupWizard();
     var tt = $("#themeToggle");
     if (tt) tt.addEventListener("click", toggleTheme);
     route();
