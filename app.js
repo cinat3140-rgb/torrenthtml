@@ -390,21 +390,75 @@
     showStep();
   }
 
+  var COMMENTS_CONFIG = {
+    supabaseUrl: "https://laavoozgpkrckafyfldy.supabase.co",
+    supabaseAnonKey: "sb_publishable_1Mxzm_Mb9FVqX5EsnyLPcQ__Qt06dLw",
+    table: "yorumlar"
+  };
   function initComments(gameId) {
     var host = document.getElementById("detailSocial");
     if (!host) return;
-    var listKey = "html.comments." + String(gameId);
-    var items = [];
-    try { items = JSON.parse(localStorage.getItem(listKey) || "[]"); } catch (e) { items = []; }
-    function save() { try { localStorage.setItem(listKey, JSON.stringify(items)); } catch (e) {} }
+    var oyun = Number(gameId) || 0;
     var nameKey = "html.user.name";
     var myName = localStorage.getItem(nameKey) || "Misafir";
+    var items = [];
+    var pollTimer = null;
+    function apiGet() {
+      var url = COMMENTS_CONFIG.supabaseUrl + "/rest/v1/" + COMMENTS_CONFIG.table +
+        "?select=*&oyun=eq." + oyun + "&order=olustu.asc&limit=100";
+      return fetch(url, { headers: { apikey: COMMENTS_CONFIG.supabaseAnonKey, Authorization: "Bearer " + COMMENTS_CONFIG.supabaseAnonKey } })
+        .then(function (r) { if (!r.ok) throw new Error("supabase " + r.status); return r.json(); });
+    }
+    function apiPost(item) {
+      return fetch(COMMENTS_CONFIG.supabaseUrl + "/rest/v1/" + COMMENTS_CONFIG.table, {
+        method: "POST",
+        headers: {
+          apikey: COMMENTS_CONFIG.supabaseAnonKey,
+          Authorization: "Bearer " + COMMENTS_CONFIG.supabaseAnonKey,
+          "Content-Type": "application/json",
+          Prefer: "return=minimal"
+        },
+        body: JSON.stringify({ oyun: oyun, yazar: item.author, email: item.email || null, metin: item.text })
+      });
+    }
+    function renderList() {
+      var log = document.getElementById("cmtLog");
+      var info = document.getElementById("cmtInfo");
+      if (log) log.innerHTML = renderComments(items);
+      if (info) info.textContent = items.length ? items.length + " yorum" : "İlk yorumu sen yaz";
+    }
+    function refresh() {
+      apiGet()
+        .then(function (rows) {
+          items = (rows || []).map(function (r) {
+            return { id: r.id, author: r.yazar || "Misafir", text: r.metin || "", email: r.email || "", at: new Date(r.olustu).getTime() };
+          });
+          renderList();
+        })
+        .catch(function () {});
+    }
+    function post() {
+      var msg = document.getElementById("cmtMsg");
+      if (!msg || !msg.value.trim()) return;
+      var nm = document.getElementById("cmtName");
+      var em = document.getElementById("cmtEmail");
+      if (nm && nm.value.trim()) localStorage.setItem(nameKey, nm.value.trim());
+      var item = { id: "c" + Date.now(), author: myName, email: em && em.value.trim() ? em.value.trim() : "", text: msg.value.trim(), at: Date.now() };
+      apiPost(item)
+        .then(function () { msg.value = ""; refresh(); })
+        .catch(function () {
+          items.push(item);
+          if (items.length > 200) items = items.slice(-200);
+          renderList();
+          msg.value = "";
+        });
+    }
     var html =
       '<div class="support-head"><h3>Yorumlar ve Canlı Sohbet</h3>' +
-      '<span class="chat-local-badge">cihaz-modu</span>' +
+      '<span class="social-badge">CANLI</span>' +
       "</div>" +
-      '<p class="support-sub">İndirenlerle yorumlaş. Supabase anahtarı verilirse bu alan tüm ziyaretçilerin ortak canlı sohbetine dönüşür (kod hazır).</p>' +
-      '<div class="support-log" id="cmtLog">' + renderComments(items) + "</div>" +
+      '<p class="support-sub">Herkese açık ortak sohbet. Takma adınla yaz, mesajın tüm ziyaretçilere anında görünür.</p>' +
+      '<div class="support-log" id="cmtLog"></div>' +
       '<div class="support-form">' +
         '<div class="support-row">' +
           '<input type="text" id="cmtName" placeholder="Takma ad (boş = Misafir)" maxlength="24" value="' + esc(myName) + '" />' +
@@ -413,27 +467,15 @@
         '<textarea id="cmtMsg" maxlength="500" placeholder="Yorumunu yaz, mesajını gönder..."></textarea>' +
         '<button class="btn btn-primary" id="cmtSend" type="button">Yorum Gönder</button>' +
       "</div>" +
-      '<p class="sw-status dim" id="cmtInfo">' + (items.length ? items.length + " yorum" : "İlk yorumu sen yaz") + "</p>";
+      '<p class="sw-status dim" id="cmtInfo"></p>';
     host.innerHTML = html;
     var send = document.getElementById("cmtSend");
     var msg = document.getElementById("cmtMsg");
-    var nm = document.getElementById("cmtName");
-    var em = document.getElementById("cmtEmail");
-    function post() {
-      if (!msg || !msg.value.trim()) return;
-      if (nm && nm.value.trim()) localStorage.setItem(nameKey, nm.value.trim());
-      var item = { id: "c" + Date.now(), author: myName, email: em && em.value.trim() ? em.value.trim() : "", text: msg.value.trim(), at: Date.now() };
-      items.push(item);
-      if (items.length > 60) items = items.slice(-60);
-      save();
-      var log = document.getElementById("cmtLog");
-      if (log) log.innerHTML = renderComments(items);
-      var info = document.getElementById("cmtInfo");
-      if (info) info.textContent = items.length + " yorum";
-      msg.value = "";
-    }
     if (send) send.addEventListener("click", post);
     if (msg) msg.addEventListener("keydown", function (e) { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); post(); } });
+    refresh();
+    if (pollTimer) clearInterval(pollTimer);
+    pollTimer = setInterval(refresh, 4000);
   }
   function renderComments(items) {
     if (!items || !items.length) return "";
