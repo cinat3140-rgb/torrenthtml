@@ -317,6 +317,8 @@ img { max-width: 100%; display: block; }
 .sw-status { margin-top:10px; }
 
 /* ==== Yorum & Canlı Sohbet (dual-mode v1.5) ==== */
+.support { margin-top:18px; border-top:1px solid rgba(127,127,127,.25); padding-top:14px; }
+.detail-social { margin-top:24px; padding-top:18px; border-top:1px solid rgba(127,127,127,.25); }
 .support-head { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:10px; }
 .support-head h3 { margin:0; font-size:1.05em; }
 .support-sub { font-size:.85em; opacity:.8; margin:0 0 10px; }
