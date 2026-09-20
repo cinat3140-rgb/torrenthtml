@@ -1,7 +1,9 @@
 (function () {
   "use strict";
 
-  var state = { catalog: null, categoryId: null, error: null, search: "", metricsUrl: null };
+  var state = { catalog: null, categoryId: null, platform: "all", error: null, search: "", sort: "default", metricsUrl: null };
+
+  var APP_VERSION = "1.4.2";
 
   function $(sel, root) { return (root || document).querySelector(sel); }
   function $$(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
@@ -32,26 +34,6 @@
       .catch(function () {});
   }
 
-  function applyTheme() {
-    var t = localStorage.getItem("html.theme") || (window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
-    document.documentElement.setAttribute("data-theme", t);
-    var btn = $("#themeToggle");
-    if (btn) btn.textContent = t === "light" ? "🌙" : "☀️";
-  }
-
-  function toggleTheme() {
-    var t = document.documentElement.getAttribute("data-theme") === "light" ? "dark" : "light";
-    try { localStorage.setItem("html.theme", t); } catch (e) {}
-    applyTheme();
-  }
-
-  function fmtCount(n) {
-    if (n == null || isNaN(n)) return "0";
-    if (n >= 1000000) return (n / 1000000).toFixed(1).replace(/\.0$/, "") + "M";
-    if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, "") + "B";
-    return String(n);
-  }
-
   function esc(s) {
     return String(s == null ? "" : s)
       .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
@@ -66,7 +48,19 @@
     return n.toFixed(n >= 100 ? 0 : 1) + " " + units[i];
   }
 
-  /* ---------- Catalog ---------- */
+  function fmtDate(iso) {
+    if (!iso) return "-";
+    var d = new Date(iso);
+    if (isNaN(d)) return "-";
+    return d.toLocaleDateString("tr-TR", { year: "numeric", month: "short", day: "numeric" });
+  }
+
+  function img(url, cls, alt) {
+    if (!url) return '<div class="placeholder">🎮</div>';
+    return '<img class="' + (cls || "") + '" src="' + esc(url) + '" alt="' + esc(alt || "") + '" loading="lazy" />';
+  }
+
+  /* ---------- Catalog data ---------- */
 
   function fetchCatalog() {
     return fetch("catalog.json?v=" + Date.now(), { headers: { Accept: "application/json" }, cache: "no-store" })
@@ -90,20 +84,107 @@
     sel.innerHTML = opts;
   }
 
+  function currentCategoryId() {
+    return (state.catalog && state.catalog.categories || []).length ? state.categoryId : null;
+  }
+
   function filteredGames() {
     var games = (state.catalog && state.catalog.games) || [];
     if (state.categoryId) games = games.filter(function (g) { return g.categoryId === state.categoryId; });
+    if (state.platform !== "all") games = games.filter(function (g) { return (g.platform || "pc") === state.platform; });
     if (state.search) {
       var q = state.search.toLowerCase();
       games = games.filter(function (g) {
         return (g.title || "").toLowerCase().indexOf(q) !== -1 ||
           (g.description || "").toLowerCase().indexOf(q) !== -1 ||
-          (g.genre || "").toLowerCase().indexOf(q) !== -1 ||
-          (g.developer || "").toLowerCase().indexOf(q) !== -1;
+          (g.genre || "").toLowerCase().indexOf(q) !== -1;
       });
+    }
+    if (state.sort === "popular") {
+      games = games.slice().sort(function (a, b) { return (b.popularity || 0) - (a.popularity || 0); });
+    } else if (state.sort === "new") {
+      games = games.slice().sort(function (a, b) {
+        var da = a.releaseDate || (a.latestVersion && a.latestVersion.releasedAt) || "";
+        var db = b.releaseDate || (b.latestVersion && b.latestVersion.releasedAt) || "";
+        return db.localeCompare(da);
+      });
+    } else if (state.sort === "az") {
+      games = games.slice().sort(function (a, b) { return (a.title || "").localeCompare(b.title || "", "tr"); });
     }
     return games;
   }
+
+  /* ---------- App update banner ---------- */
+
+  function renderUpdateBanner(latest) {
+    var el = $("#updateBanner");
+    if (!el) return;
+    if (!latest || !latest.version) { el.hidden = true; el.innerHTML = ""; return; }
+    var notes = latest.notes ? "<span>" + esc(latest.notes) + "</span>" : "";
+    var btn = latest.downloadUrl
+      ? '<a class="btn btn-primary btn-sm" href="' + esc(latest.downloadUrl) + '" target="_blank" rel="noopener">Güncelle</a>'
+      : '<span class="dim" style="font-size:.82rem">Launcherda yeni sürüm bildirilecek.</span>';
+    el.innerHTML =
+      '<div class="update-banner-inner">' +
+        '<span style="font-size:1.1rem">🆕</span>' +
+        '<div class="update-text"><strong>GameHTML v' + esc(latest.version) + " yayınlandı.</strong>" + notes + "</div>" +
+        '<div class="update-actions">' + btn + "</div>" +
+      "</div>";
+    el.hidden = false;
+  }
+
+  function fetchAppUpdate() {
+    fetch("app-update.json", { headers: { Accept: "application/json" } })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        if (d && d.updateAvailable && d.latest && d.latest.version !== APP_VERSION) renderUpdateBanner(d.latest);
+      })
+      .catch(function () {});
+  }
+
+  /* ---------- Actions ---------- */
+
+  function platformInfo(g) {
+  var p = (g.platform || "pc");
+  if (p === "torrent") {
+    var t = g.torrent || {};
+    if (t.magnetUrl) return { label: "Torrent", badge: "TORRENT", url: t.magnetUrl, external: true, icon: "🧲", cta: "Magnet'i Aç", cls: "badge-torrent" };
+    if (t.torrentUrl) return { label: "Torrent", badge: "TORRENT", url: t.torrentUrl, external: true, icon: "⬇", cta: ".torrent İndir", cls: "badge-torrent" };
+  }
+  if (p === "apk") {
+    var a = g.apk || {};
+    if (a.url) return { label: "APK", badge: "APK", url: a.url, external: true, icon: "📦", cta: "APK İndir", cls: "badge-apk" };
+  }
+  return null;
+}
+
+function primaryAction(g) {
+  var pi = platformInfo(g);
+  if (pi) return { isExternal: true, url: pi.url, platformExtra: pi };
+  var file = Array.isArray(g.latestFiles) && g.latestFiles.length ? g.latestFiles[0] : null;
+  var isExternal = file ? file.source === "external" : !!(g.externalUrl && !g.downloadUrl);
+  var url = isExternal
+    ? ((file && file.downloadUrl) || g.externalUrl)
+    : ((file && file.downloadUrl) || g.downloadUrl);
+  return { isExternal: isExternal, url: url || "", platformExtra: pi };
+}
+
+function actionButtons(g, sizeClass) {
+  var a = primaryAction(g);
+  var cls = sizeClass || "";
+  var detail = '<a class="btn btn-ghost ' + cls + '" href="#/oyun/' + g.id + '">İncele</a>';
+  if (!a.url) return detail;
+  var pi = a.platformExtra;
+  if (pi) {
+    return '<a class="btn btn-primary ' + cls + '" href="' + esc(a.url) + '" target="_blank" rel="noopener nofollow" data-metric="download:' + g.id + '">' + pi.icon + " " + pi.cta + "</a>" + detail;
+  }
+  if (a.isExternal) {
+    return '<a class="btn btn-primary ' + cls + '" href="' + esc(a.url) + '" target="_blank" rel="noopener nofollow" data-metric="download:' + g.id + '">🌐 Sayfaya Git</a>' + detail;
+  }
+  return '<a class="btn btn-primary ' + cls + '" href="' + esc(a.url) + '" download data-metric="download:' + g.id + '">⬇ İndir</a>' + detail;
+}
+
+  /* ---------- Rendering ---------- */
 
   function categoryName(id) {
     var cats = (state.catalog && state.catalog.categories) || [];
@@ -111,82 +192,64 @@
     return null;
   }
 
-  function torrentInfo(g) {
-    var t = g.torrent || {};
-    var hasMagnet = !!(t.magnetUrl || g.magnetUrl);
-    var hasFile = !!(t.torrentUrl || g.torrentUrl);
-    var file = Array.isArray(g.latestFiles) && g.latestFiles.length ? g.latestFiles[0] : null;
-    return {
-      magnet: t.magnetUrl || g.magnetUrl || "",
-      torrentUrl: t.torrentUrl || g.torrentUrl || "",
-      seeds: t.seeds != null ? t.seeds : (g.seeds != null ? g.seeds : null),
-      leeches: t.leeches != null ? t.leeches : (g.leeches != null ? g.leeches : null),
-      size: t.fileSize || (file && file.fileSize) || g.fileSize || 0,
-      uploader: t.uploader || g.uploader || "",
-      sha256: t.sha256 || g.sha256 || "",
-      hasMagnet: hasMagnet,
-      hasFile: hasFile,
-      hasAny: hasMagnet || hasFile || !!(file && file.downloadUrl)
-    };
-  }
-
-  function categoryNameFor(id) { return categoryName(id); }
-
   function coverWithFallback(g) {
     if (g.coverUrl) return '<img class="gcard-cover-img" src="' + esc(g.coverUrl) + '" alt="' + esc(g.title) + '" loading="lazy" />';
-    return '<div class="placeholder">🧲</div>';
+    return '<div class="placeholder">🎮</div>';
   }
 
-  function healthBadges(t) {
-    var out = "";
-    if (t.seeds != null) out += '<span class="gcard-seed">▲ ' + esc(t.seeds) + " Seeder</span>";
-    if (t.leeches != null) out += '<span class="gcard-leech">▼ ' + esc(t.leeches) + " Leecher</span>";
-    if (t.sha256) out += '<span class="gcard-cert">✅ Doğrulanmış</span>';
-    return out;
+  function statsHtml(g) {
+    var st = g.stats || {};
+    var views = st.views || g.popularity || 0;
+    var dl = st.downloads || 0;
+    var parts = [];
+    if (views > 0) parts.push('<span class="stat-views">' + views.toLocaleString("tr-TR") + " görüntülenme</span>");
+    if (dl > 0) parts.push('<span class="stat-downloads">' + dl.toLocaleString("tr-TR") + " indirme</span>");
+    if (g.isFeatured) parts.push('<span class="stat-views stat-popular">Popüler</span>');
+    return parts.length ? '<div class="gcard-stats">' + parts.join("") + "</div>" : "";
   }
 
   function card(g) {
-    var t = torrentInfo(g);
-    var cat = categoryNameFor(g.categoryId);
-    var size = fmtBytes(t.size);
-    var featured = g.isFeatured ? '<span class="gcard-featured">★ Öne Çıkan</span>' : "";
-    var developer = g.developer || g.publisher || "";
-
-    var actions;
-    if (t.magnet) {
-      actions = '<a class="btn btn-primary btn-sm" href="' + esc(t.magnet) + '" data-metric="download:' + g.id + '">🧲 Magnet</a>' +
-        '<a class="btn btn-ghost btn-sm" href="#/oyun/' + g.id + '">Detay</a>';
-    } else {
-      actions = '<a class="btn btn-ghost btn-sm" href="#/oyun/' + g.id + '">İncele</a>' +
-        '<span class="btn btn-ghost btn-sm" style="cursor:default">Yakında</span>';
-    }
-
-    var statsHtml = "";
-    if (g.stats && (typeof g.stats.views === "number" || typeof g.stats.downloads === "number")) {
-      statsHtml =
-        (typeof g.stats.views === "number" ? '<span class="gcard-views">👁 ' + fmtCount(g.stats.views) + "</span>" : "") +
-        (typeof g.stats.downloads === "number" ? '<span class="gcard-dl">⬇ ' + fmtCount(g.stats.downloads) + "</span>" : "");
-    }
-
+    var a = primaryAction(g);
+    var cat = categoryName(g.categoryId);
+    var file = Array.isArray(g.latestFiles) && g.latestFiles.length ? g.latestFiles[0] : null;
+    var size = file ? fmtBytes(file.fileSize) : "-";
+    var version = g.latestVersion ? g.latestVersion.version : (g.version || null);
+    var featuredBadge = g.isFeatured ? '<span class="gcard-featured">★ Öne Çıkan</span>' : "";
+    var pi = primaryAction(g).platformExtra;
+    var platformBadge = pi
+      ? '<span class="gcard-platform ' + pi.cls + '">' + pi.badge + "</span>"
+      : "";
+    var developer = g.developer ? g.developer : (g.publisher || "");
+    var fileBadge = a.isExternal ? "🌐 Harici" : "";
+    var urlLabel = a.isExternal ? (pi ? pi.cta : "Sayfaya Git") : "İndir";
+    var urlIcon = a.isExternal ? (pi ? pi.icon : "🌐") : "⬇";
     return (
       '<article class="gcard">' +
         '<a class="gcard-cover" href="#/oyun/' + g.id + '" aria-label="' + esc(g.title) + '">' +
           coverWithFallback(g) +
           '<span class="gcard-overlay"></span>' +
           (cat ? '<span class="gcard-cat">' + esc(cat) + "</span>" : "") +
-          featured +
-          '<span class="gcard-play"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86a1 1 0 0 0-1.5.86z"/></svg></span>' +
+          platformBadge +
+          featuredBadge +
+          '<span class="gcard-play">' +
+            '<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86a1 1 0 0 0-1.5.86z"/></svg>' +
+          "</span>" +
         "</a>" +
         '<div class="gcard-body">' +
           '<a class="gcard-title" href="#/oyun/' + g.id + '">' + esc(g.title) + "</a>" +
           (developer ? '<div class="gcard-dev">' + esc(developer) + "</div>" : "") +
           '<div class="gcard-meta">' +
-            (size !== "-" ? '<span class="gcard-size">💾 ' + size + "</span>" : "") +
-            (g.latestVersion ? '<span class="gcard-ver">v' + esc(g.latestVersion.version || g.version) + "</span>" : "") +
-            healthBadges(t) +
-            statsHtml +
+            '<span class="gcard-size">' + size + "</span>" +
+            (version ? '<span class="gcard-ver">v' + esc(version) + "</span>" : "") +
+            (fileBadge ? '<span class="gcard-ext">' + fileBadge + "</span>" : "") +
           "</div>" +
-          '<div class="gcard-actions">' + actions + "</div>" +
+          statsHtml(g) +
+          '<div class="gcard-actions">' +
+            (a.url
+              ? '<a class="btn btn-primary btn-sm" href="' + esc(a.url) + '" target="_blank" rel="noopener nofollow" data-metric="download:' + g.id + '">' + urlIcon + " " + urlLabel + "</a>"
+              : '<span class="btn btn-ghost btn-sm" style="cursor:default">Yakında</span>') +
+            '<a class="btn btn-ghost btn-sm" href="#/oyun/' + g.id + '">İncele</a>' +
+          "</div>" +
         "</div>" +
       "</article>"
     );
@@ -196,15 +259,30 @@
     var grid = $("#catalogGrid");
     var count = $("#catalogCount");
     var games = filteredGames();
-    count.textContent = (state.catalog ? state.catalog.games.length : 0) + " torrent listeleniyor";
+    count.textContent = (state.catalog ? state.catalog.games.length : 0) + " oyun listeleniyor";
     if (!games.length) {
-      var totalCount = (state.catalog ? state.catalog.games.length : 0);
-      grid.innerHTML = totalCount
-        ? '<div class="emptystate"><div class="emptystate-icon">🔍</div><h3>Aradığın torrent bulunamadı</h3><p>Filtreyi veya arama terimini değiştirerek tekrar dene.</p></div>'
-        : '<div class="emptystate"><div class="emptystate-icon">🧲</div><h3>Katalog yakında dolu</h3><p>İlk torrent ekleniyor. Birkaç gün içinde yeni indirmelerle buradayız.</p></div>';
+      grid.innerHTML = '<div class="empty">Bu kategoride oyun bulunamadı.</div>';
       return;
     }
     grid.innerHTML = games.map(card).join("");
+  }
+
+  function renderRequirements(requirements) {
+    if (!requirements) return "";
+    var min = requirements.minimum;
+    var rec = requirements.recommended;
+    function reqTable(title, obj) {
+      if (!obj) return "";
+      var keys = Object.keys(obj);
+      if (!keys.length) return "";
+      var rows = keys.map(function (k) {
+        return '<div class="req-row"><span class="k">' + esc(k) + "</span><span class='v'>" + esc(obj[k]) + "</span></div>";
+      }).join("");
+      return '<div class="req-col"><div class="req-title">' + esc(title) + "</div>" + rows + "</div>";
+    }
+    var cols = reqTable("Minimum", min) + reqTable("Önerilen", rec);
+    if (!cols) return "";
+    return '<div class="require"><h4>Sistem Gereksinimleri</h4><div class="req-grid">' + cols + "</div></div>";
   }
 
   function renderGame(id) {
@@ -212,78 +290,105 @@
     metric("view", id);
     var g = state.catalog && state.catalog.games.find(function (x) { return Number(x.id) === Number(id); });
     if (!g) {
-      el.innerHTML = '<div class="empty">Torrent bulunamadı. <a href="#/katalog" style="color:var(--accent)">Kataloğa dön</a></div>';
+      el.innerHTML = '<div class="empty">Oyun bulunamadı. <a href="#/katalog" style="color:var(--accent)">Kataloğa dön</a></div>';
       return;
     }
-    var t = torrentInfo(g);
-    var cat = categoryNameFor(g.categoryId);
+    var a = primaryAction(g);
+    var file = Array.isArray(g.latestFiles) && g.latestFiles.length ? g.latestFiles[0] : null;
+    var cat = categoryName(g.categoryId);
+    var version = g.latestVersion ? g.latestVersion.version : (g.version || null);
+    var releaseDate = g.releaseDate || (g.latestVersion && g.latestVersion.releasedAt);
     var tags = [];
+    if (pi) tags.push(pi.badge);
     if (cat) tags.push(cat);
     if (g.genre) tags.push(g.genre);
-    if (g.latestVersion) tags.push("v" + (g.latestVersion.version || g.version));
+    if (version) tags.push("v" + version);
+    if (g.membersOnly) tags.push("Üyelere Özel");
 
-    /* Magnet panel */
-    var magnetPanel = "";
-    if (t.hasAny) {
-      var btnRow = "";
-      if (t.magnet) btnRow += '<a class="btn btn-primary btn-lg" href="' + esc(t.magnet) + '" data-metric="download:' + g.id + '">🧲 Magnet ile Aç</a>';
-      if (t.magnet) btnRow += '<button class="btn btn-ghost btn-lg" onclick="app.copyText(&quot;' + esc(t.magnet) + '&quot;)">📋 Magnet Kopyala</button>';
-      if (t.torrentUrl) btnRow += '<a class="btn btn-ghost btn-lg" href="' + esc(t.torrentUrl) + '" download data-metric="download:' + g.id + '">⬇ .torrent İndir</a>';
-
-      var health = "";
-      if (t.seeds != null) health += '<span class="chip style">▲ ' + esc(t.seeds) + " Seeder</span>";
-      if (t.leeches != null) health += '<span class="chip dim">▼ ' + esc(t.leeches) + " Leecher</span>";
-
-      magnetPanel =
-        '<div class="magnet-panel">' +
-          '<h3>🧲 Bu torrenti indir</h3>' +
-          '<p>Magnet linki ile istemcin otomatik açılır; dosya indirme hemen başlar.</p>' +
-          (health ? '<div class="torrent-health">' + health + "</div>" : "") +
-          '<div class="magnet-actions">' + btnRow + "</div>" +
-        "</div>";
+    var extraInfo = "";
+    if (pi && pi.badge === "TORRENT") {
+      var t = g.torrent || {};
+      if (t.seeds != null) extraInfo += infoRow("Seeder", "▲ " + t.seeds);
+      if (t.leeches != null) extraInfo += infoRow("Leecher", "▼ " + t.leeches);
+      if (t.uploader) extraInfo += infoRow("Yükleyen", t.uploader);
+      if (t.sha256) extraInfo += '<div class="info-row"><span class="k">SHA-256</span><span class="v mono">' + esc(String(t.sha256).slice(0, 24)) + "…</span></div>";
+    }
+    if (pi && pi.badge === "APK") {
+      var ap = g.apk || {};
+      if (ap.androidVersion) extraInfo += infoRow("Android", ap.androidVersion);
+      if (ap.arch) extraInfo += infoRow("Mimari", ap.arch);
+      if (ap.packageName) extraInfo += infoRow("Paket", ap.packageName);
+      if (ap.permissions && ap.permissions.length) extraInfo += infoRow("İzinler", ap.permissions.join(", "));
+      if (ap.sha256) extraInfo += '<div class="info-row"><span class="k">SHA-256</span><span class="v mono">' + esc(String(ap.sha256).slice(0, 24)) + "…</span></div>";
     }
 
-    var infoRows = "";
-    function infoRow(k, v) { return '<div class="info-row"><span class="k">' + esc(k) + "</span><span class='v'>" + esc(v) + "</span></div>"; }
-    infoRows += g.developer ? infoRow("Geliştirici", g.developer) : "";
-    infoRows += g.publisher ? infoRow("Yayıncı", g.publisher) : "";
-    infoRows += infoRow("Kategori", cat || "—");
-    infoRows += fmtBytes(t.size) !== "-" ? infoRow("Boyut", fmtBytes(t.size)) : "";
-    infoRows += t.seeds != null ? infoRow("Seeder", String(t.seeds)) : "";
-    infoRows += t.leeches != null ? infoRow("Leecher", String(t.leeches)) : "";
-    infoRows += t.uploader ? infoRow("Yükleyen", t.uploader) : "";
-    if (t.sha256) infoRows += infoRow("SHA-256", t.sha256.slice(0, 24) + "…");
-    if (g.stats && typeof g.stats.views === "number") infoRows += infoRow("Görüntülenme", "👁 " + fmtCount(g.stats.views));
-    if (g.stats && typeof g.stats.downloads === "number") infoRows += infoRow("İndirme", "⬇ " + fmtCount(g.stats.downloads));
-
+    var pi = platformInfo(g);
+    var actionHtml = "";
+    if (!a.url) {
+      actionHtml = '<span class="dim" style="font-size:.9rem;text-align:center">Yakında</span>';
+    } else if (pi) {
+      var pNote = pi.badge === "TORRENT"
+        ? "Magnet linki torrent istemcinle aç; hız topluluğa bağlıdır."
+        : "APK'yı indir, Android cihazında kur ve oyna.";
+      actionHtml = '<a class="btn btn-primary btn-lg btn-block" href="' + esc(a.url) + '" target="_blank" rel="noopener nofollow" data-metric="download:' + g.id + '">' + pi.icon + " " + pi.cta + "</a>" +
+        '<span class="dim" style="font-size:.82rem;text-align:center">' + pNote + "</span>";
+    } else if (a.isExternal) {
+      actionHtml = '<a class="btn btn-primary btn-lg btn-block" href="' + esc(a.url) + '" target="_blank" rel="noopener nofollow" data-metric="download:' + g.id + '">🌐 Sayfaya Git</a>' +
+        '<span class="dim" style="font-size:.82rem;text-align:center">Oyun tarayıcıda açılır; dosyayı oradan indirebilirsin.</span>';
+    } else {
+      actionHtml = '<a class="btn btn-primary btn-lg btn-block" href="' + esc(a.url) + '" download data-metric="download:' + g.id + '">⬇ İndir</a>' +
+        '<span class="dim" style="font-size:.82rem;text-align:center">Dosyayı indir; uygulamada "Oyun Ekle" bölümünden kur.</span>';
+    }
     var screens = Array.isArray(g.screenshots) && g.screenshots.length
-      ? '<div class="screens"><div class="screens-title">Görseller</div><div class="screens-grid">' +
-        g.screenshots.map(function (s) { return '<img class="shot" src="' + esc(s) + '" alt="' + esc(g.title) + '" loading="lazy" />'; }).join("") + "</div></div>"
+      ? '<div class="screens"><div class="screens-title">Ekran Görüntüleri</div><div class="screens-grid">' +
+        g.screenshots.map(function (s) { return '<img class="shot" src="' + esc(s) + '" alt="' + esc(g.title) + ' görüntüsü" loading="lazy" />'; }).join("") + "</div></div>"
       : "";
+
+    var gStats = g.stats || {};
+    var infoRows =
+      (g.developer ? infoRow("Geliştirici", g.developer) : "") +
+      (g.publisher ? infoRow("Yayıncı", g.publisher) : "") +
+      infoRow("Platform", (g.platform || "pc").toUpperCase()) +
+      infoRow("Kategori", cat || "—") +
+      infoRow("Sürüm", version || "—") +
+      infoRow("Boyut", fmtBytes((g.torrent && g.torrent.fileSize) || (g.apk && g.apk.fileSize) || (file && file.fileSize))) +
+      infoRow("Yayın Tarihi", fmtDate(releaseDate)) +
+      (file && file.fileName ? infoRow("Dosya", file.fileName) : "") +
+      (gStats.downloads ? infoRow("İndirme", gStats.downloads.toLocaleString("tr-TR")) : "") +
+      (gStats.views || g.popularity ? infoRow("Görüntülenme", (gStats.views || g.popularity).toLocaleString("tr-TR")) : "") +
+      extraInfo;
 
     el.innerHTML =
       '<div class="detail-head">' +
+          (g.bannerUrl && !g.coverUrl ? '<div class="detail-hero-bg"><img src="' + esc(g.bannerUrl) + '" alt="" /></div>' : "") +
           '<div class="detail-cover-wrap">' + coverWithFallback(g) + (g.isFeatured ? '<span class="gcard-featured">★ Öne Çıkan</span>' : "") + "</div>" +
           '<div class="detail-titleblock">' +
             '<h1>' + esc(g.title) + "</h1>" +
             (g.developer ? '<div class="detail-dev">' + esc(g.developer) + "</div>" : "") +
-            '<div class="detail-tags">' + tags.map(function (t2) { return '<span class="tag accent">' + esc(t2) + "</span>"; }).join("") + "</div>" +
+            '<div class="detail-tags">' + tags.map(function (t) { return '<span class="tag">' + esc(t) + "</span>"; }).join("") + "</div>" +
+            '<div class="detail-cta">' + actionHtml + "</div>" +
           "</div>" +
       "</div>" +
-      magnetPanel +
       '<div class="wrap detail-body">' +
         "<div class='detail-main'>" +
+          (g.shortDescription ? '<p class="detail-short">' + esc(g.shortDescription) + "</p>" : "") +
           '<div class="detail-desc-title">Hakkında</div>' +
           '<p class="detail-desc">' + esc(g.description || "Açıklama eklenmemiş.") + "</p>" +
           screens +
         "</div>" +
         '<aside class="detail-panel">' +
-          '<div class="detail-panel-title">Torrent Bilgileri</div>' +
+          '<div class="detail-panel-title">Oyun Bilgileri</div>' +
           '<div class="info-list">' + infoRows + "</div>" +
-        "</aside>" +
-      "</div>" +
+          renderRequirements(g.requirements) +
+          "</aside>" +
+        "</div>" +
       '<div class="detail-social" id="detailSocial" data-gid="' + (g.id) + '"></div>';
+    el.querySelectorAll("[data-screenshot]").forEach(function (btn) { bindLightbox(btn); });
     setTimeout(function () { initComments(g.id); }, 0);
+  }
+
+  function infoRow(k, v) {
+    return '<div class="info-row"><span class="k">' + esc(k) + "</span><span class='v'>" + esc(v) + "</span></div>";
   }
 
   /* ---------- Router ---------- */
@@ -314,7 +419,7 @@
           .then(function () { render(r); })
           .catch(function (err) {
             state.error = err.message;
-            $("#catalogGrid").innerHTML = '<div class="empty">Katalog yüklenemedi: ' + esc(err.message) + ".</div>";
+            $("#catalogGrid").innerHTML = '<div class="empty">Katalog yüklenemedi: ' + esc(err.message) + '.<br/>Sunucunun çalıştığından emin ol.</div>';
             $("#catalogCount").textContent = "";
           })
           .finally(function () { state.loading = false; });
@@ -330,31 +435,121 @@
     window.scrollTo(0, 0);
   }
 
-  /* ---------- Public ---------- */
-
-  function copyText(text) {
-    function done() {
-      var el = document.createElement("div");
-      el.textContent = "Magnet kopyalandı ✅";
-      el.style.cssText = "position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#10b981;color:#06231a;padding:10px 20px;border-radius:10px;font-weight:700;z-index:200;box-shadow:0 10px 30px rgba(0,0,0,.4);";
-      document.body.appendChild(el);
-      setTimeout(function () { el.remove(); }, 1800);
-    }
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(done).catch(function () { fallback(); });
-    } else fallback();
-    function fallback() {
-      var ta = document.createElement("textarea");
-      ta.value = text;
-      document.body.appendChild(ta);
-      ta.select();
-      try { document.execCommand("copy"); } catch (e) {}
-      document.body.removeChild(ta);
-      done();
-    }
+  /* ---------- Theme ---------- */
+  function initTheme() {
+    var saved = localStorage.getItem("html.theme");
+    var theme = saved || (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    applyTheme(theme);
+    var btn = $("#themeToggle");
+    if (btn) btn.textContent = theme === "dark" ? "☀️" : "🌙";
+  }
+  function applyTheme(t) {
+    document.documentElement.setAttribute("data-theme", t);
+    localStorage.setItem("html.theme", t);
+    var btn = $("#themeToggle");
+    if (btn) btn.textContent = t === "dark" ? "☀️" : "🌙";
+  }
+  function toggleTheme() {
+    var cur = document.documentElement.getAttribute("data-theme") || "dark";
+    applyTheme(cur === "dark" ? "light" : "dark");
   }
 
-  /* ---------- Kurulum Sihirbazi + Yorum/Sohbet (v1.5) ---------- */
+  /* ---------- News banner ---------- */
+  function fetchNews() {
+    fetch("news.json", { cache: "no-store" }).then(function (r) { return r.ok ? r.json() : null; }).then(function (data) {
+      if (!data || !data.title) return;
+      var dismissed = {};
+      try { dismissed = JSON.parse(localStorage.getItem("gl.newsDismiss") || "{}"); } catch (e) {}
+      if (dismissed[data.title]) return;
+      var el = $("#newsBanner");
+      var txt = $("#newsText");
+      if (!el || !txt) return;
+      txt.innerHTML = "<strong>" + esc(data.title) + "</strong>" + (data.body ? " — " + data.body : "");
+      el.hidden = false;
+    }).catch(function () {});
+  }
+  function dismissNews() {
+    var el = $("#newsBanner");
+    if (el) el.hidden = true;
+    fetch("news.json", { cache: "no-store" }).then(function (r) { return r.ok ? r.json() : null; }).then(function (data) {
+      if (!data || !data.title) return;
+      var d = {};
+      try { d = JSON.parse(localStorage.getItem("gl.newsDismiss") || "{}"); } catch (e) {}
+      d[data.title] = true;
+      localStorage.setItem("gl.newsDismiss", JSON.stringify(d));
+    }).catch(function () {});
+  }
+
+  /* ---------- Feedback ---------- */
+  function openFeedback() {
+    var subject = encodeURIComponent("GameHTML v" + APP_VERSION + " Geri Bildirim");
+    var body = encodeURIComponent("Uygulama/Site: GameHTML\nSürüm: " + APP_VERSION + "\nTarayıcı: " + navigator.userAgent + "\n\nMesajınız:");
+    window.open("mailto:cinat3140@gmail.com?subject=" + subject + "&body=" + body, "_blank");
+  }
+
+  /* ---------- Public ---------- */
+
+  window.app = {
+    applyFilter: function (v) {
+      state.categoryId = v ? Number(v) : null;
+      renderCatalog();
+    },
+    applyPlatform: function (v) {
+      state.platform = v || "all";
+      renderCatalog();
+    },
+    applySearch: function (v) {
+      state.search = (v || "").trim();
+      renderCatalog();
+    },
+    applySort: function (v) {
+      state.sort = v || "default";
+      renderCatalog();
+    }
+  };
+
+  window.addEventListener("hashchange", route);
+  document.addEventListener("DOMContentLoaded", function () {
+    initTheme();
+    fetchAppUpdate();
+    fetchNews();
+    route();
+    var themeBtn = $("#themeToggle");
+    if (themeBtn) themeBtn.addEventListener("click", toggleTheme);
+    var newsClose = $("#newsClose");
+    if (newsClose) newsClose.addEventListener("click", dismissNews);
+    var feedbackBtn = $("#feedbackBtn");
+    if (feedbackBtn) feedbackBtn.addEventListener("click", openFeedback);
+  });
+
+  if (document.readyState !== "loading") { initTheme(); }
+
+  /* Metric delegation: <a data-metric="view|download:id"> */
+  document.addEventListener("click", function (e) {
+    var el = e.target && e.target.closest ? e.target.closest("a[data-metric]") : null;
+    if (!el) return;
+    var parts = el.getAttribute("data-metric").split(":");
+    if (parts[0] === "download") metric("download", parts[1]);
+  });
+
+  /* Simple lightbox for screenshots */
+  document.addEventListener("click", function (e) {
+    var t = e.target;
+    if (t && t.tagName === "IMG" && t.classList.contains("screens-grid") === false) return;
+    if (t && t.parentElement && t.parentElement.classList.contains("screens-grid")) {
+      var src = t.src;
+      var ov = document.createElement("div");
+      ov.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;z-index:100;cursor:zoom-out;";
+      var im = new Image();
+      im.style.cssText = "max-width:90vw;max-height:90vh;border-radius:10px;";
+      im.src = src;
+      ov.appendChild(im);
+      ov.addEventListener("click", function () { ov.remove(); });
+      document.body.appendChild(ov);
+    }
+  });
+})();
+  /* ============ KURULUM SIHRBAZI (tek akis, secimsiz) ============ */
   function bindSetupWizard() {
     var next = document.getElementById("setupNext");
     if (!next) return;
@@ -362,6 +557,7 @@
     var status = document.getElementById("setupStatus");
     var bar = document.getElementById("setupBarFill");
     var cur = 0;
+    cur = -1;
     function label(i){ return stepEls[i] ? stepEls[i].querySelector(".sw-title").textContent : ""; }
     function setStatus(t){ if (status) status.textContent = t; }
     function showStep() {
@@ -377,20 +573,26 @@
     next.addEventListener("click", function () {
       cur++;
       if (cur >= stepEls.length) {
-        setStatus("Kurulum tamamlandı. Katalogdan oyunu seç ve başlat.");
-        next.textContent = "Kataloğu Aç →";
+        setStatus("Kurulum tamamlandi. Katalogdan oyunu secte ve baslat.");
+        next.textContent = "Katalogu Ac  →";
+        next.className = next.className.replace(/\bsw-finished\b/,"").trim() + " sw-finished";
         next.onclick = function () { location.hash = "#/katalog"; };
         showStep();
         return;
       }
-      setStatus("Adım " + (cur + 1) + ": " + label(cur));
+      setStatus("Adiim " + (cur + 1) + ": " + label(cur));
       showStep();
-      next.textContent = (cur === stepEls.length - 1) ? "Kurulumu Tamamla →" : "Sıradaki →";
+      if (cur === stepEls.length - 1) {
+        next.textContent = "Kurulumu Tamamla  →";
+      } else {
+        next.textContent = "Siradaki  →";
+      }
     });
     showStep();
   }
 
-  var COMMENTS_CONFIG = {
+  /* ============ YORUM & CANLI SOHBET (dual-mode: localStorage / Supabase) ============ */
+var COMMENTS_CONFIG = {
     supabaseUrl: "https://laavoozgpkrckafyfldy.supabase.co",
     supabaseAnonKey: "sb_publishable_1Mxzm_Mb9FVqX5EsnyLPcQ__Qt06dLw",
     table: "yorumlar"
@@ -454,18 +656,15 @@
         });
     }
     var html =
-      '<div class="support-head"><h3>Yorumlar ve Canlı Sohbet</h3>' +
-      '<span class="social-badge">CANLI</span>' +
-      "</div>" +
-      '<p class="support-sub">Herkese açık ortak sohbet. Takma adınla yaz, mesajın tüm ziyaretçilere anında görünür.</p>' +
+      '<div class="support-head"><h3>Yorumlar</h3></div>' +
       '<div class="support-log" id="cmtLog"></div>' +
       '<div class="support-form">' +
         '<div class="support-row">' +
           '<input type="text" id="cmtName" placeholder="Takma ad (boş = Misafir)" maxlength="24" value="' + esc(myName) + '" />' +
           '<input type="email" id="cmtEmail" placeholder="Email (isteğe bağlı)" maxlength="80" />' +
         "</div>" +
-        '<textarea id="cmtMsg" maxlength="500" placeholder="Yorumunu yaz, mesajını gönder..."></textarea>' +
-        '<button class="btn btn-primary" id="cmtSend" type="button">Yorum Gönder</button>' +
+        '<textarea id="cmtMsg" maxlength="500" placeholder="Bu oyun hakkında yorumunu yaz..."></textarea>' +
+        '<button class="btn btn-primary" id="cmtSend" type="button">Yorum Yap</button>' +
       "</div>" +
       '<p class="sw-status dim" id="cmtInfo"></p>';
     host.innerHTML = html;
@@ -475,7 +674,7 @@
     if (msg) msg.addEventListener("keydown", function (e) { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); post(); } });
     refresh();
     if (pollTimer) clearInterval(pollTimer);
-    pollTimer = setInterval(refresh, 4000);
+    pollTimer = setInterval(refresh, 20000);
   }
   function renderComments(items) {
     if (!items || !items.length) return "";
@@ -487,50 +686,3 @@
         "<div>" + esc(it.text) + "</div></div>";
     }).join("");
   }
-
-  window.app = {
-    applyFilter: function (v) {
-      state.categoryId = v ? Number(v) : null;
-      renderCatalog();
-    },
-    applySearch: function (v) {
-      state.search = (v || "").trim();
-      renderCatalog();
-    },
-    copyText: copyText,
-    toggleTheme: toggleTheme
-  };
-
-  window.addEventListener("hashchange", route);
-  document.addEventListener("DOMContentLoaded", function () {
-    applyTheme();
-    bindSetupWizard();
-    var tt = $("#themeToggle");
-    if (tt) tt.addEventListener("click", toggleTheme);
-    route();
-  });
-  if (document.readyState !== "loading") { applyTheme(); route(); }
-
-  /* Metric delegation: <a data-metric="view|download:id"> */
-  document.addEventListener("click", function (e) {
-    var el = e.target && e.target.closest ? e.target.closest("a[data-metric]") : null;
-    if (!el) return;
-    var parts = el.getAttribute("data-metric").split(":");
-    if (parts[0] === "download") metric("download", parts[1]);
-  });
-
-  document.addEventListener("click", function (e) {
-    var t = e.target;
-    if (t && t.parentElement && t.parentElement.classList.contains("screens-grid")) {
-      var src = t.src;
-      var ov = document.createElement("div");
-      ov.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;z-index:100;cursor:zoom-out;";
-      var im = new Image();
-      im.style.cssText = "max-width:90vw;max-height:90vh;border-radius:10px;";
-      im.src = src;
-      ov.appendChild(im);
-      ov.addEventListener("click", function () { ov.remove(); });
-      document.body.appendChild(ov);
-    }
-  });
-})();
