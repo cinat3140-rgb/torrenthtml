@@ -181,7 +181,23 @@ h1, h2, h3, p { margin: 0; }
 .news-close:hover { color: var(--text); background: var(--bg-raised); }
 
 /* ---------- Theme toggle / feedback ---------- */
-.theme-toggle { font-size: 1rem; line-height: 1; padding: 8px 11px; }
+.theme-toggle {
+  width: 38px; height: 38px; padding: 0; flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 1.15rem; line-height: 1; border-radius: 50%;
+  border: 1px solid var(--border);
+  background: linear-gradient(135deg, var(--bg-raised), var(--bg-soft));
+  color: var(--text);
+  cursor: pointer;
+  transition: transform .3s ease, border-color .2s, box-shadow .2s, color .2s;
+}
+.theme-toggle:hover {
+  border-color: var(--primary);
+  color: var(--accent);
+  box-shadow: 0 0 0 4px rgba(109, 124, 246, .15);
+  transform: rotate(20deg) scale(1.08);
+}
+.theme-toggle:active { transform: rotate(100deg) scale(.94); }
 .feedback-fab {
   position: fixed; right: 22px; bottom: 22px; z-index: 300; width: 54px; height: 54px;
   border: none; border-radius: 50%; cursor: pointer; font-size: 1.5rem;
