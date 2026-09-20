@@ -425,3 +425,40 @@ h1, h2, h3, p { margin: 0; }
 
 /* ==== Sayfa giriş animasyonu (sadece görünüş, işlev bozmaz) ==== */
 .fade-up { animation: cardIn .35s ease both; }
+
+/* ==== Uygulama kartı (indir sayfası, tema uyumlu) ==== */
+.app-banner {
+  display: flex; align-items: center; gap: 22px; flex-wrap: wrap;
+  padding: 26px; margin-bottom: 24px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: linear-gradient(135deg, var(--bg-raised), var(--bg-soft));
+  box-shadow: var(--shadow);
+}
+.app-banner-sm { padding: 20px; }
+.app-icon {
+  flex: 0 0 auto; width: 76px; height: 76px; font-size: 2.4rem;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 18px; background: var(--accent); color: #fff;
+  box-shadow: 0 10px 26px rgba(109, 124, 246, .35);
+}
+.app-info { flex: 1 1 260px; min-width: 0; }
+.app-title { font-size: 1.25rem; margin-bottom: 6px; }
+.app-desc { color: var(--text-dim); font-size: .95rem; margin-bottom: 6px; }
+.app-detail { font-size: .9rem; color: var(--text-dim); margin-bottom: 12px; }
+.app-cta { display: flex; gap: 10px; flex-wrap: wrap; }
+.app-cta .btn { min-width: 0; }
+.app-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 12px; }
+.app-chip {
+  font-size: .74rem; font-weight: 600; color: var(--text-dim);
+  background: var(--bg); border: 1px solid var(--border);
+  padding: 4px 11px; border-radius: 999px;
+}
+.app-chip b { color: var(--text); font-weight: 700; }
+.app-banner-sm .app-icon { width: 56px; height: 56px; font-size: 1.7rem; border-radius: 14px; }
+@media (max-width: 640px) {
+  .app-banner { flex-direction: column; text-align: center; padding: 20px; }
+  .app-cta { justify-content: center; }
+  .app-cta .btn { flex: 1 1 auto; }
+  .app-chips { justify-content: center; }
+}
