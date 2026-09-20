@@ -520,6 +520,7 @@ function actionButtons(g, sizeClass) {
     if (newsClose) newsClose.addEventListener("click", dismissNews);
     var feedbackBtn = $("#feedbackBtn");
     if (feedbackBtn) feedbackBtn.addEventListener("click", openFeedback);
+    try { bindSetupWizard(); } catch (e) {}
   });
 
   if (document.readyState !== "loading") { initTheme(); }
@@ -547,8 +548,8 @@ function actionButtons(g, sizeClass) {
       ov.addEventListener("click", function () { ov.remove(); });
       document.body.appendChild(ov);
     }
-  });
-})();
+});
+
   /* ============ KURULUM SIHRBAZI (tek akis, secimsiz) ============ */
   function bindSetupWizard() {
     var next = document.getElementById("setupNext");
@@ -591,7 +592,12 @@ function actionButtons(g, sizeClass) {
     showStep();
   }
 
-  /* ============ YORUM & CANLI SOHBET (dual-mode: localStorage / Supabase) ============ */
+/* ============ YORUM SISTEMI (Supabase + localStorage yedek) ============ */
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (ch) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch];
+    });
+  }
 var COMMENTS_CONFIG = {
     supabaseUrl: "https://laavoozgpkrckafyfldy.supabase.co",
     supabaseAnonKey: "sb_publishable_1Mxzm_Mb9FVqX5EsnyLPcQ__Qt06dLw",
@@ -698,6 +704,7 @@ var COMMENTS_CONFIG = {
       return '<div class="chat-item">' +
         '<div class="chat-meta"><span class="chat-author">' + esc(it.author || "Misafir") + "</span>" +
         '<span class="chat-time">' + when + "</span></div>" +
-        "<div>" + esc(it.text) + "</div></div>";
+"<div>" + esc(it.text) + "</div></div>";
     }).join("");
   }
+})();
