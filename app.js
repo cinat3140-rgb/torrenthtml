@@ -294,6 +294,7 @@ function actionButtons(g, sizeClass) {
       return;
     }
     var a = primaryAction(g);
+    var pi = platformInfo(g);
     var file = Array.isArray(g.latestFiles) && g.latestFiles.length ? g.latestFiles[0] : null;
     var cat = categoryName(g.categoryId);
     var version = g.latestVersion ? g.latestVersion.version : (g.version || null);
@@ -322,7 +323,6 @@ function actionButtons(g, sizeClass) {
       if (ap.sha256) extraInfo += '<div class="info-row"><span class="k">SHA-256</span><span class="v mono">' + esc(String(ap.sha256).slice(0, 24)) + "…</span></div>";
     }
 
-    var pi = platformInfo(g);
     var actionHtml = "";
     if (!a.url) {
       actionHtml = '<span class="dim" style="font-size:.9rem;text-align:center">Yakında</span>';
@@ -623,6 +623,16 @@ var COMMENTS_CONFIG = {
         body: JSON.stringify({ oyun: oyun, yazar: item.author, email: item.email || null, metin: item.text })
       });
     }
+    var cacheKey = "yorum_cache_" + oyun;
+    function readLocal() {
+      try {
+        var raw = localStorage.getItem(cacheKey);
+        return raw ? JSON.parse(raw) : [];
+      } catch (e) { return []; }
+    }
+    function saveLocal(list) {
+      try { localStorage.setItem(cacheKey, JSON.stringify(list.slice(-100))); } catch (e) {}
+    }
     function renderList() {
       var log = document.getElementById("cmtLog");
       var info = document.getElementById("cmtInfo");
@@ -632,12 +642,16 @@ var COMMENTS_CONFIG = {
     function refresh() {
       apiGet()
         .then(function (rows) {
-          items = (rows || []).map(function (r) {
+          items = (rows || []).filter(function (r) { return r.durum === "yorum" || !r.durum; }).map(function (r) {
             return { id: r.id, author: r.yazar || "Misafir", text: r.metin || "", email: r.email || "", at: new Date(r.olustu).getTime() };
           });
+          saveLocal(items);
           renderList();
         })
-        .catch(function () {});
+        .catch(function () {
+          var local = readLocal();
+          if (local && local.length) { items = local; renderList(); }
+        });
     }
     function post() {
       var msg = document.getElementById("cmtMsg");
@@ -651,6 +665,7 @@ var COMMENTS_CONFIG = {
         .catch(function () {
           items.push(item);
           if (items.length > 200) items = items.slice(-200);
+          saveLocal(items);
           renderList();
           msg.value = "";
         });
