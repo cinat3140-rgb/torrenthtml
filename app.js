@@ -265,6 +265,10 @@ function actionButtons(g, sizeClass) {
       return;
     }
     grid.innerHTML = games.map(card).join("");
+    grid.querySelectorAll(".gcard").forEach(function (el, i) {
+      el.classList.add("gcard-in");
+      if (i < 24) el.style.animationDelay = (i * 40) + "ms";
+    });
   }
 
   function renderRequirements(requirements) {
@@ -339,6 +343,8 @@ function actionButtons(g, sizeClass) {
       actionHtml = '<a class="btn btn-primary btn-lg btn-block" href="' + esc(a.url) + '" download data-metric="download:' + g.id + '">⬇ İndir</a>' +
         '<span class="dim" style="font-size:.82rem;text-align:center">Dosyayı indir; uygulamada "Oyun Ekle" bölümünden kur.</span>';
     }
+    var copyBtn = '<button class="btn btn-ghost btn-sm" id="copyLink" type="button" style="margin-top:6px">🔗 Linki Kopyala</button>';
+    actionHtml = '<div style="display:flex;flex-direction:column;gap:6px;align-items:stretch">' + actionHtml + copyBtn + "</div>";
     var screens = Array.isArray(g.screenshots) && g.screenshots.length
       ? '<div class="screens"><div class="screens-title">Ekran Görüntüleri</div><div class="screens-grid">' +
         g.screenshots.map(function (s) { return '<img class="shot" src="' + esc(s) + '" alt="' + esc(g.title) + ' görüntüsü" loading="lazy" />'; }).join("") + "</div></div>"
@@ -384,6 +390,25 @@ function actionButtons(g, sizeClass) {
         "</div>" +
       '<div class="detail-social" id="detailSocial" data-gid="' + (g.id) + '"></div>';
     el.querySelectorAll("[data-screenshot]").forEach(function (btn) { bindLightbox(btn); });
+    var copyBtn = document.getElementById("copyLink");
+    if (copyBtn) copyBtn.addEventListener("click", function () {
+      var url = location.href.split("#")[0] + "#/oyun/" + g.id;
+      function done(ok) {
+        var t = document.getElementById("copyLink");
+        if (!t) return;
+        var old = t.innerHTML;
+        t.innerHTML = ok ? "✅ Kopyalandı" : "Kopyalanamadı";
+        t.disabled = true;
+        setTimeout(function () { t.innerHTML = old; t.disabled = false; }, 1500);
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(function () { done(true); }).catch(function () { done(false); });
+      } else if (window.copyText) {
+        window.copyText(url); done(true);
+      } else {
+        done(false);
+      }
+    });
     setTimeout(function () { initComments(g.id); }, 0);
   }
 
@@ -408,7 +433,13 @@ function actionButtons(g, sizeClass) {
     if (VIEWS.indexOf(r.view) === -1) { location.hash = "#/"; return; }
     var activeView = r.view;
     $$("[data-view]").forEach(function (el) {
-      el.hidden = el.getAttribute("data-view") !== activeView;
+      var show = el.getAttribute("data-view") === activeView;
+      if (show) {
+        el.classList.remove("fade-up");
+        void el.offsetWidth;
+        el.classList.add("fade-up");
+      }
+      el.hidden = !show;
     });
     if (r.view === "katalog" || r.view === "game") {
       if (state.catalog) {
@@ -520,6 +551,13 @@ function actionButtons(g, sizeClass) {
     if (newsClose) newsClose.addEventListener("click", dismissNews);
     var feedbackBtn = $("#feedbackBtn");
     if (feedbackBtn) feedbackBtn.addEventListener("click", openFeedback);
+    var toTop = $("#toTop");
+    if (toTop) {
+      window.addEventListener("scroll", function () {
+        toTop.classList.toggle("show", (window.pageYOffset || document.documentElement.scrollTop) > 320);
+      }, { passive: true });
+      toTop.addEventListener("click", function () { window.scrollTo({ top: 0, behavior: "smooth" }); });
+    }
     try { bindSetupWizard(); } catch (e) {}
   });
 
@@ -540,15 +578,22 @@ function actionButtons(g, sizeClass) {
     if (t && t.parentElement && t.parentElement.classList.contains("screens-grid")) {
       var src = t.src;
       var ov = document.createElement("div");
-      ov.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;z-index:100;cursor:zoom-out;";
+      ov.className = "lb";
+      document.body.classList.add("no-scroll");
       var im = new Image();
       im.style.cssText = "max-width:90vw;max-height:90vh;border-radius:10px;";
       im.src = src;
       ov.appendChild(im);
-      ov.addEventListener("click", function () { ov.remove(); });
+      ov.addEventListener("click", function () { ov.remove(); document.body.classList.remove("no-scroll"); });
       document.body.appendChild(ov);
     }
 });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") {
+      var lb = document.querySelector(".lb");
+      if (lb) { lb.remove(); document.body.classList.remove("no-scroll"); }
+    }
+  });
 
   /* ============ KURULUM SIHRBAZI (tek akis, secimsiz) ============ */
   function bindSetupWizard() {
