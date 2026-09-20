@@ -642,8 +642,10 @@ var COMMENTS_CONFIG = {
     function renderList() {
       var log = document.getElementById("cmtLog");
       var info = document.getElementById("cmtInfo");
+      var cnt = document.getElementById("cmtCount");
       if (log) log.innerHTML = renderComments(items);
-      if (info) info.textContent = items.length ? items.length + " yorum" : "İlk yorumu sen yaz";
+      if (cnt) cnt.textContent = items.length ? items.length + " yorum" : "";
+      if (info) info.textContent = items.length ? "" : "İlk yorumu sen yaz — düşüncelerini paylaş.";
     }
     function refresh() {
       apiGet()
@@ -677,7 +679,7 @@ var COMMENTS_CONFIG = {
         });
     }
     var html =
-      '<div class="support-head"><h3>Yorumlar</h3></div>' +
+      '<div class="support-head"><h3>Yorumlar</h3><span class="support-count" id="cmtCount"></span></div>' +
       '<div class="support-log" id="cmtLog"></div>' +
       '<div class="support-form">' +
         '<div class="support-row">' +
@@ -697,14 +699,14 @@ var COMMENTS_CONFIG = {
     if (pollTimer) clearInterval(pollTimer);
     pollTimer = setInterval(refresh, 20000);
   }
-  function renderComments(items) {
-    if (!items || !items.length) return "";
+function renderComments(items) {
+    if (!items || !items.length) return '<div class="support-empty">Henüz yorum yapılmamış. İlk yorumu sen yaz!</div>';
     return items.map(function (it) {
       var when = new Date(it.at).toLocaleDateString("tr-TR", { day: "numeric", month: "short" });
       return '<div class="chat-item">' +
         '<div class="chat-meta"><span class="chat-author">' + esc(it.author || "Misafir") + "</span>" +
         '<span class="chat-time">' + when + "</span></div>" +
-"<div>" + esc(it.text) + "</div></div>";
+        '<div class="chat-text">' + esc(it.text) + "</div></div>";
     }).join("");
   }
 })();
