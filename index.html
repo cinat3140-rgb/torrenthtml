@@ -3,19 +3,20 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>TorrentHTML — Torrent Oyun Kütüphanesi</title>
-  <meta name="description" content="TorrentHTML: en güncel oyun torrentleri. Magnet bağlantıları, torrent dosyaları, seeder/leecher bilgisi ve boyutlar — hepsi tek yerde." />
+  <title>GameVault - Torrent Oyun Kutuphanesi</title>
+  <meta name="description" content="GameVault Torrent: en güncel oyun torrentleri. Magnet bağlantıları, torrent dosyaları, seeder/leecher bilgisi ve boyutlar — hepsi tek yerde." />
   <link rel="icon" href="favicon.png" type="image/png" />
-  <link rel="stylesheet" href="style.css?v=20260930" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+  <link rel="stylesheet" href="style.css?v=20260923" />
 </head>
 <body>
   <div class="site-switch">
     <div class="wrap site-switch-inner">
       <span class="site-switch-label">Diğer Siteler:</span>
-      <a class="site-link" href="https://cinat3140-rgb.github.io/gamehtml/">GameHTML</a>
-      <a class="site-link" href="https://cinat3140-rgb.github.io/pchtml/">PcHTML</a>
-      <a class="site-link active" href="#" onclick="return false;">TorrentHTML</a>
-      <a class="site-link" href="https://cinat3140-rgb.github.io/apkhtml/">ApkHTML</a>
+      <a class="site-link" href="https://cinat3140-rgb.github.io/gamehtml/">GameVault (Ana)</a>
+      <a class="site-link" href="https://cinat3140-rgb.github.io/pchtml/">GameVault PC</a>
+      <a class="site-link active" href="#" onclick="return false;">GameVault Torrent</a>
+      <a class="site-link" href="https://cinat3140-rgb.github.io/apkhtml/">GameVault APK</a>
     </div>
   </div>
   <header class="nav">
@@ -24,7 +25,7 @@
         <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/>
         </svg>
-        <span class="brand-name">Torrent<span class="accent">HTML</span></span>
+        <span class="brand-name">Game<span class="accent">Vault</span></span><span class="platform-badge">Torrent</span><span class="platform-badge">Torrent</span>
       </a>
       <nav class="nav-links">
         <a href="#/katalog">Katalog</a>
@@ -45,7 +46,11 @@
         <div class="wrap hero-inner">
           <div class="hero-badge"><span class="dot"></span> Torrent Kütüphanesi · Ücretsiz</div>
           <h1>Oyun torrentlerini <span class="accent">güvenle</span> indir</h1>
-          <p class="hero-sub">TorrentHTML, en güncel oyunların magnet bağlantı ve .torrent dosyalarını seeder sayısıyla birlikte sunar. İndirme hızın topluluğa bağlıdır.</p>
+          <p class="hero-sub">GameVault Torrent, en güncel oyunların magnet bağlantı ve .torrent dosyalarını seeder sayısıyla birlikte sunar. İndirme hızın topluluğa bağlıdır.</p>
+          <form id="homeSearchForm" class="hero-search" action="#">
+            <input id="homeSearchInput" type="search" placeholder="🔍 Torrent ara… örn. GTA, Call of Duty, Skyrim" />
+            <button class="btn btn-primary" type="submit">Ara</button>
+          </form>
           <div class="hero-cta">
             <a class="btn btn-primary btn-lg" href="#/katalog">🧲 Kataloğa Göz At</a>
             <a class="btn btn-ghost btn-lg" href="#/indir">⬇ Torrent İstemcisi</a>
@@ -54,9 +59,26 @@
         </div>
       </div>
 
+      <section class="section" id="recentSection">
+        <div class="wrap">
+          <div class="section-head">
+            <h2 class="section-title">Son Eklenenler</h2>
+            <a class="btn btn-ghost btn-sm" href="#/katalog">Tümünü Gör →</a>
+          </div>
+          <div id="homeRecentGrid" class="grid"><div class="loader"></div></div>
+        </div>
+      </section>
+
+      <section class="section" id="catSection">
+        <div class="wrap">
+          <h2 class="section-title">Kategorilere Göz At</h2>
+          <div id="homeCats" class="home-cats"></div>
+        </div>
+      </section>
+
       <section class="section" id="ozellikler">
         <div class="wrap">
-          <h2 class="section-title">Neden TorrentHTML?</h2>
+          <h2 class="section-title">Neden GameVault Torrent?</h2>
           <div class="features">
             <div class="feature"><div class="f-icon">🧲</div><h3>Magnet Linkler</h3><p>Tek tıkla torrent istemcin açılır; dosya indirme başlar.</p></div>
             <div class="feature"><div class="f-icon">📡</div><h3>Seeder / Leecher</h3><p>Her torrent için topluluk sağlık göstergesi: kaç kişi paylaşıyor.</p></div>
@@ -203,7 +225,7 @@
         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/>
         </svg>
-        <span class="brand-name">Torrent<span class="accent">HTML</span></span>
+        <span class="brand-name">Torrent<span class="accent">Vault</span></span>
       </div>
       <nav class="footer-links">
         <a href="#/katalog">Katalog</a>
@@ -211,10 +233,10 @@
         <a href="#/kurulum">Kurulum</a>
         <a href="#/sss">SSS</a>
       </nav>
-      <p class="footer-meta">v1.0.0 · © 2026 TorrentHTML</p>
+      <p class="footer-meta">v1.0.0 · © 2026 GameVault Torrent</p>
     </div>
   </footer>
 
-  <script src="app.js?v=20260930"></script>
+  <script src="app.js?v=20260923"></script>
 </body>
 </html>
