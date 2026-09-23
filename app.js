@@ -3,7 +3,7 @@
 
   var state = { catalog: null, categoryId: null, platform: "all", error: null, search: "", sort: "default", metricsUrl: null };
 
-  var APP_VERSION = "1.4.2";
+  var APP_VERSION = "1.4.4";
 
   function $(sel, root) { return (root || document).querySelector(sel); }
   function $$(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
@@ -242,7 +242,7 @@
     el.innerHTML =
       '<div class="update-banner-inner">' +
         '<span style="font-size:1.1rem">🆕</span>' +
-        '<div class="update-text"><strong>SteamUncapped v' + esc(latest.version) + " yayınlandı.</strong>" + notes + "</div>" +
+        '<div class="update-text"><strong>Oynuo v' + esc(latest.version) + " yayınlandı.</strong>" + notes + "</div>" +
         '<div class="update-actions">' + btn + "</div>" +
       "</div>";
     el.hidden = false;
@@ -663,8 +663,8 @@ function actionButtons(g, sizeClass) {
 
   /* ---------- Feedback ---------- */
   function openFeedback() {
-    var subject = encodeURIComponent("SteamUncapped v" + APP_VERSION + " Geri Bildirim");
-    var body = encodeURIComponent("Uygulama/Site: SteamUncapped\nSürüm: " + APP_VERSION + "\nTarayıcı: " + navigator.userAgent + "\n\nMesajınız:");
+    var subject = encodeURIComponent("Oynuo v" + APP_VERSION + " Geri Bildirim");
+    var body = encodeURIComponent("Uygulama/Site: Oynuo\nSürüm: " + APP_VERSION + "\nTarayıcı: " + navigator.userAgent + "\n\nMesajınız:");
     window.open("mailto:cinat3140@gmail.com?subject=" + subject + "&body=" + body, "_blank");
   }
 
